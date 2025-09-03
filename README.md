@@ -1,69 +1,130 @@
-# React + TypeScript + Vite
+# test-github-pages — Vite + React + TypeScript + SWC を GitHub Pages へ
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+このリポジトリは、Vite + React + TypeScript（SWC）で作成したアプリを GitHub Pages に自動デプロイするための最小構成です。これまでの対応内容を踏まえて、運用手順と注意点をまとめます。
 
-Currently, two official plugins are available:
+## 概要
+- ツール: Vite 7 / React 19 / TypeScript 5 / `@vitejs/plugin-react-swc`
+- 公開先: GitHub Pages（このリポジトリのプロジェクトサイト）
+- デプロイ: GitHub Actions（`.github/workflows/pages.yml`）で `main` への push をトリガーに自動公開
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 1) 初回セットアップ
+1. 依存インストール（済みならスキップ）
+   ```bash
+   npm install
+   ```
+2. GitHub Pages を有効化（初回のみ）
+   - GitHub のリポジトリ画面 → Settings → Pages
+   - Build and deployment の Source を「GitHub Actions」に設定して保存
 
-## Expanding the ESLint configuration
+## 2) ローカル開発
+```bash
+npm run dev
+```
+表示された URL にアクセス（デフォルトのポートは Vite の表示に従ってください）。
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 3) デプロイ（自動）
+`main` ブランチへ push すると GitHub Actions がビルドして Pages に公開します。
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git add -A
+git commit -m "feat: update"
+git push -u origin main
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- Actions タブのワークフロー名: `Deploy to GitHub Pages`
+- 成功後、`deploy` ステップの出力に公開 URL（`page_url`）が表示されます
+- 例: `https://<ユーザー名>.github.io/test-github-pages/`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 4) 設定のポイント
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Vite の `base`（Pages 用パス調整）
+`vite.config.ts` では、GitHub Actions の本番ビルド時に自動で `base` を設定します。
+
+```ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react-swc'
+
+export default defineConfig(({ mode }) => {
+  const repo = ((globalThis as any).process?.env?.GITHUB_REPOSITORY as string | undefined)?.split('/')?.[1] ?? ''
+  const isUserSite = repo ? repo.endsWith('.github.io') : false
+  const base = mode === 'production' ? (isUserSite ? '/' : repo ? `/${repo}/` : '/') : '/'
+  return { plugins: [react()], base }
+})
 ```
+
+- ローカル開発時（`dev`）は `/` のまま
+- GitHub Actions（`mode: production`）では `/<repo>/` に切り替え（ユーザー/組織サイト `<user>.github.io` の場合は `/`）
+
+### SPA フォールバック（直リンク 404 回避）
+Pages は SPA のルーティングを解釈しないため、直リンク/リロードで 404 になります。ワークフローで `dist/index.html` → `dist/404.html` をコピーしてフォールバックさせています。
+
+### GitHub Actions ワークフロー
+`.github/workflows/pages.yml`（要点のみ）
+
+```yaml
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: SPA fallback
+        run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+## 5) よくあるハマりと対処
+- デプロイで `404 Not Found` エラー（`deploy-pages`）
+  - Pages が未有効化。Settings → Pages で「GitHub Actions」を選択し保存（初回のみ）
+- 白画面/アセット 404
+  - `base` が誤り。`vite.config.ts` で `/<repo>/` になっているか確認
+- ルータの直リンク/リロードで 404
+  - `404.html` フォールバック（ワークフローの `SPA fallback` ステップ）を確認
+- TypeScript: `TS2580: Cannot find name 'process'`
+  - 本リポジトリでは `globalThis.process?.env` を参照して `@types/node` なしで回避
+  - 代替案: `npm i -D @types/node` + `tsconfig.node.json` に `types: ["node"]`
+- TypeScript: `TS18003: No inputs were found`
+  - `tsconfig.node.json` の `include` を空にしない（本リポジトリは `["vite.config.ts"]`）
+
+## 6) カスタマイズ
+- デプロイ対象ブランチを変更したい
+  - ワークフロー内の `branches: [ main ]` を希望のブランチへ変更
+- ユーザー/組織サイト（`<user>.github.io`）として公開したい
+  - リポジトリ名を `<user>.github.io` にすると `base: '/'` が自動適用
+- 独自ドメイン（CNAME）
+  - 例: 以下のステップを `build` 後に追加
+    ```yaml
+    - name: Add CNAME
+      run: echo example.com > dist/CNAME
+    ```
+
+## 7) コマンド早見表
+- 開発: `npm run dev`
+- ビルド: `npm run build`
+- Lint: `npm run lint`
+
+---
+問題があれば Issue や PR で知らせてください。
+
