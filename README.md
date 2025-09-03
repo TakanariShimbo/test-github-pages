@@ -1,13 +1,15 @@
-# test-github-pages — Vite + React + TypeScript + SWC を GitHub Pages へ
+# Vite + React + TypeScript を GitHub Pages へ
 
-このリポジトリは、Vite + React + TypeScript（SWC）で作成したアプリを GitHub Pages に自動デプロイするための最小構成です。これまでの対応内容を踏まえて、運用手順と注意点をまとめます。
+このリポジトリは、Vite + React + TypeScript で作成したアプリを GitHub Pages に自動デプロイするための最小構成です。
 
 ## 概要
+
 - ツール: Vite 7 / React 19 / TypeScript 5 / `@vitejs/plugin-react-swc`
 - 公開先: GitHub Pages（このリポジトリのプロジェクトサイト）
 - デプロイ: GitHub Actions（`.github/workflows/pages.yml`）で `main` への push をトリガーに自動公開
 
 ## 1) プロジェクト初期化（Vite）
+
 まだ未作成の場合は次で初期化します（このリポジトリは実施済み）。
 
 ```bash
@@ -15,21 +17,26 @@ npm create vite@latest . -- --template react-swc-ts
 ```
 
 ## 2) 依存インストール
+
 ```bash
 npm install
 ```
 
 ## 3) GitHub Pages を有効化（初回のみ）
+
 - GitHub のリポジトリ画面 → Settings → Pages
 - Build and deployment の Source を「GitHub Actions」に設定して保存
 
 ## 4) ローカル開発
+
 ```bash
 npm run dev
 ```
+
 表示された URL にアクセス（デフォルトのポートは Vite の表示に従ってください）。
 
 ## 5) デプロイ（自動）
+
 `main` ブランチへ push すると GitHub Actions がビルドして Pages に公開します。
 
 ```bash
@@ -45,33 +52,36 @@ git push -u origin main
 ## 6) 設定のポイント
 
 ### Vite の `base`（Pages 用パス調整）
+
 `vite.config.ts` では、GitHub Actions の本番ビルド時に自動で `base` を設定します。
 
 ```ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react-swc'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
 
 export default defineConfig(({ mode }) => {
-  const repo = ((globalThis as any).process?.env?.GITHUB_REPOSITORY as string | undefined)?.split('/')?.[1] ?? ''
-  const isUserSite = repo ? repo.endsWith('.github.io') : false
-  const base = mode === 'production' ? (isUserSite ? '/' : repo ? `/${repo}/` : '/') : '/'
-  return { plugins: [react()], base }
-})
+  const repo = ((globalThis as any).process?.env?.GITHUB_REPOSITORY as string | undefined)?.split("/")?.[1] ?? "";
+  const isUserSite = repo ? repo.endsWith(".github.io") : false;
+  const base = mode === "production" ? (isUserSite ? "/" : repo ? `/${repo}/` : "/") : "/";
+  return { plugins: [react()], base };
+});
 ```
 
 - ローカル開発時（`dev`）は `/` のまま
 - GitHub Actions（`mode: production`）では `/<repo>/` に切り替え（ユーザー/組織サイト `<user>.github.io` の場合は `/`）
 
 ### SPA フォールバック（直リンク 404 回避）
+
 Pages は SPA のルーティングを解釈しないため、直リンク/リロードで 404 になります。ワークフローで `dist/index.html` → `dist/404.html` をコピーしてフォールバックさせています。
 
 ### GitHub Actions ワークフロー
+
 `.github/workflows/pages.yml`（要点のみ）
 
 ```yaml
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -103,6 +113,7 @@ jobs:
 ```
 
 ## 7) よくあるハマりと対処
+
 - デプロイで `404 Not Found` エラー（`deploy-pages`）
   - Pages が未有効化。Settings → Pages で「GitHub Actions」を選択し保存（初回のみ）
 - 白画面/アセット 404
@@ -116,6 +127,7 @@ jobs:
   - `tsconfig.node.json` の `include` を空にしない（本リポジトリは `["vite.config.ts"]`）
 
 ## 8) カスタマイズ
+
 - デプロイ対象ブランチを変更したい
   - ワークフロー内の `branches: [ main ]` を希望のブランチへ変更
 - ユーザー/組織サイト（`<user>.github.io`）として公開したい
@@ -128,9 +140,11 @@ jobs:
     ```
 
 ## 9) コマンド早見表
+
 - 開発: `npm run dev`
 - ビルド: `npm run build`
 - Lint: `npm run lint`
 
 ---
+
 問題があれば Issue や PR で知らせてください。
