@@ -7,22 +7,29 @@
 - 公開先: GitHub Pages（このリポジトリのプロジェクトサイト）
 - デプロイ: GitHub Actions（`.github/workflows/pages.yml`）で `main` への push をトリガーに自動公開
 
-## 1) 初回セットアップ
-1. 依存インストール（済みならスキップ）
-   ```bash
-   npm install
-   ```
-2. GitHub Pages を有効化（初回のみ）
-   - GitHub のリポジトリ画面 → Settings → Pages
-   - Build and deployment の Source を「GitHub Actions」に設定して保存
+## 1) プロジェクト初期化（Vite）
+まだ未作成の場合は次で初期化します（このリポジトリは実施済み）。
 
-## 2) ローカル開発
+```bash
+npm create vite@latest . -- --template react-swc-ts
+```
+
+## 2) 依存インストール
+```bash
+npm install
+```
+
+## 3) GitHub Pages を有効化（初回のみ）
+- GitHub のリポジトリ画面 → Settings → Pages
+- Build and deployment の Source を「GitHub Actions」に設定して保存
+
+## 4) ローカル開発
 ```bash
 npm run dev
 ```
 表示された URL にアクセス（デフォルトのポートは Vite の表示に従ってください）。
 
-## 3) デプロイ（自動）
+## 5) デプロイ（自動）
 `main` ブランチへ push すると GitHub Actions がビルドして Pages に公開します。
 
 ```bash
@@ -35,7 +42,7 @@ git push -u origin main
 - 成功後、`deploy` ステップの出力に公開 URL（`page_url`）が表示されます
 - 例: `https://<ユーザー名>.github.io/test-github-pages/`
 
-## 4) 設定のポイント
+## 6) 設定のポイント
 
 ### Vite の `base`（Pages 用パス調整）
 `vite.config.ts` では、GitHub Actions の本番ビルド時に自動で `base` を設定します。
@@ -95,7 +102,7 @@ jobs:
         uses: actions/deploy-pages@v4
 ```
 
-## 5) よくあるハマりと対処
+## 7) よくあるハマりと対処
 - デプロイで `404 Not Found` エラー（`deploy-pages`）
   - Pages が未有効化。Settings → Pages で「GitHub Actions」を選択し保存（初回のみ）
 - 白画面/アセット 404
@@ -108,7 +115,7 @@ jobs:
 - TypeScript: `TS18003: No inputs were found`
   - `tsconfig.node.json` の `include` を空にしない（本リポジトリは `["vite.config.ts"]`）
 
-## 6) カスタマイズ
+## 8) カスタマイズ
 - デプロイ対象ブランチを変更したい
   - ワークフロー内の `branches: [ main ]` を希望のブランチへ変更
 - ユーザー/組織サイト（`<user>.github.io`）として公開したい
@@ -120,11 +127,10 @@ jobs:
       run: echo example.com > dist/CNAME
     ```
 
-## 7) コマンド早見表
+## 9) コマンド早見表
 - 開発: `npm run dev`
 - ビルド: `npm run build`
 - Lint: `npm run lint`
 
 ---
 問題があれば Issue や PR で知らせてください。
-
